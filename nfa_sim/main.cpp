@@ -190,6 +190,8 @@ public:
   std::vector<TransitionFunction> transition_states;
 
   State(int s) : state{s} {}
+
+  inline void print() { std::cout << "I am at state: " << state << std::endl; }
 };
 
 class Graph {
@@ -198,6 +200,22 @@ public:
 
   Graph(std::shared_ptr<State> s) : start{s} {};
 };
+
+bool perform_traversal(std::shared_ptr<State> state, const NFA n) {
+  if (state->transition_states.size() == 0) {
+    for (int f : n.acceptStates) {
+      if (f == state->state) {
+        return true;
+      }
+    }
+    return false;
+  }
+  for (int i = 0; i < state->transition_states.size(); ++i) {
+    return perform_traversal(state->transition_states[i].to_state, n);
+  }
+
+  return false;
+}
 
 int main() {
   NFA n{construct_machine_definition()};
@@ -220,7 +238,24 @@ int main() {
     states[i]->transition_states = state_transitions;
   }
 
+  /* std::cout << states[0]->state << std::endl; */
+  /* std::shared_ptr<State> traverser = states[0]; */
   Graph g{states[0]};
+
+  std::shared_ptr<State> traverser = g.start;
+
+  for (int i = 0; i < traverser->transition_states.size(); ++i) {
+    std::cout << "I am at state: " << traverser->state
+              << " and about to read symbol "
+              << traverser->transition_states[i].symbol << " to go to state: "
+              << traverser->transition_states[i].to_state->state << std::endl;
+    std::shared_ptr<State> t = traverser->transition_states[i].to_state;
+  }
+
+  /* std::cout << traverser->state << std::endl; */
+  /* std::cout << traverser->transition_states[2].symbol << std::endl; */
+  /* traverser = traverser->transition_states[2].to_state; */
+  /* std::cout << traverser->state << std::endl; */
 
   return 0;
 }

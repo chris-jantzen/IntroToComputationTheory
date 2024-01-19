@@ -3,22 +3,18 @@
 #include <string>
 #include <vector>
 
-bool test_run = false;
-
-class Transition
-{
-public:
-  // (from, symbol) -> to
-  int from;
-  int to;
-  std::string symbol;
-
-  Transition(int f, std::string sym, int t) : from{f}, symbol{sym}, to{t} {}
-};
+// TODO: Make sure I have all of the rules for NFA construction and transitioning down correctly.
 
 class NFA
 {
 public:
+  struct Transition
+  {
+    int from;
+    std::string symbol;
+    int to;
+  };
+
   int states{};
   std::vector<Transition> transitions;
   std::vector<int> acceptStates;
@@ -37,137 +33,6 @@ public:
   }
 };
 
-Transition split_transition_input(std::string transitionString)
-{
-  std::vector<std::string> pieces{};
-
-  int position{0};
-  std::string delimiter{" "};
-  while (position < transitionString.size())
-  {
-    position = transitionString.find(delimiter);
-    pieces.push_back(transitionString.substr(0, position));
-    transitionString.erase(0, position + delimiter.size());
-  }
-  if (transitionString != "")
-    pieces.push_back(transitionString);
-
-  Transition t{stoi(pieces[0]), pieces[1], stoi(pieces[2])};
-  return t;
-}
-
-NFA construct_machine_definition()
-{
-  std::string n_in;
-  if (test_run)
-  {
-    n_in = "5";
-  }
-  else
-  {
-    getline(std::cin, n_in);
-  }
-
-  // number of states (0 is the start state up to n-1)
-  int n{stoi(n_in)};
-
-  std::string t_in;
-  if (test_run)
-  {
-    t_in = "4";
-  }
-  else
-  {
-    getline(std::cin, t_in);
-  }
-  int t{stoi(t_in)};
-
-  std::vector<Transition> transitions{};
-  if (test_run)
-  {
-    transitions.push_back(split_transition_input("0 a 1"));
-    transitions.push_back(split_transition_input("1 eps 2"));
-    transitions.push_back(split_transition_input("2 eps 3"));
-    transitions.push_back(split_transition_input("3 eps 4"));
-  }
-  else
-  {
-    for (int i = 0; i < t; ++i)
-    {
-      std::string transitionString;
-      std::getline(std::cin, transitionString);
-      transitions.push_back(split_transition_input(transitionString));
-    }
-  }
-
-  std::string f_in;
-  if (test_run)
-  {
-    f_in = "1";
-  }
-  else
-  {
-    getline(std::cin, f_in);
-  }
-  int f{stoi(f_in)};
-
-  std::vector<int> acceptStates{};
-
-  if (test_run)
-  {
-    std::vector<std::string> inputAcceptStates{"4"};
-    for (std::string as : inputAcceptStates)
-    {
-      acceptStates.push_back(stoi(as));
-    }
-  }
-  else
-  {
-    for (int i = 0; i < f; ++i)
-    {
-      std::string acceptState;
-      getline(std::cin, acceptState);
-      acceptStates.push_back(stoi(acceptState));
-    }
-  }
-
-  return {n, transitions, acceptStates};
-}
-
-std::vector<std::string> read_test_strings()
-{
-  std::string s_in;
-  if (test_run)
-  {
-    s_in = "3";
-  }
-  else
-  {
-    getline(std::cin, s_in);
-  }
-  int s{stoi(s_in)};
-
-  std::vector<std::string> test_strings{};
-
-  if (test_run)
-  {
-    test_strings.push_back("");
-    test_strings.push_back("a");
-    test_strings.push_back("aa");
-  }
-  else
-  {
-    for (int i = 0; i < s; ++i)
-    {
-      std::string test_string;
-      getline(std::cin, test_string);
-      test_strings.push_back(test_string);
-    }
-  }
-
-  return test_strings;
-}
-
 class State
 {
 public:
@@ -182,13 +47,79 @@ public:
   std::vector<TransitionFunction> transition_states;
 
   State(int s, bool a) : state{s}, accept{a} {}
-
-  void print()
-  {
-    std::string acceptState{(accept ? "" : "not an")};
-    std::cout << "I am at state: " << state << " and I am " << acceptState << " accept state." << std::endl;
-  }
 };
+
+NFA::Transition split_transition_input(std::string transitionString)
+{
+  std::vector<std::string> pieces{};
+
+  int position{0};
+  std::string delimiter{" "};
+  while (position < transitionString.size())
+  {
+    position = transitionString.find(delimiter);
+    pieces.push_back(transitionString.substr(0, position));
+    transitionString.erase(0, position + delimiter.size());
+  }
+  if (transitionString != "")
+    pieces.push_back(transitionString);
+
+  return {stoi(pieces[0]), pieces[1], stoi(pieces[2])};
+}
+
+NFA read_nfa_definition_input()
+{
+  std::string n_in;
+  getline(std::cin, n_in);
+
+  // number of states (0 is the start state up to n-1)
+  int n{stoi(n_in)};
+
+  std::string t_in;
+  getline(std::cin, t_in);
+  int t{stoi(t_in)};
+
+  std::vector<NFA::Transition> transitions{};
+  for (int i = 0; i < t; ++i)
+  {
+    std::string transitionString;
+    std::getline(std::cin, transitionString);
+    transitions.push_back(split_transition_input(transitionString));
+  }
+
+  std::string f_in;
+  getline(std::cin, f_in);
+  int f{stoi(f_in)};
+
+  std::vector<int> acceptStates{};
+
+  for (int i = 0; i < f; ++i)
+  {
+    std::string acceptState;
+    getline(std::cin, acceptState);
+    acceptStates.push_back(stoi(acceptState));
+  }
+
+  return {n, transitions, acceptStates};
+}
+
+std::vector<std::string> read_test_strings()
+{
+  std::string s_in;
+  getline(std::cin, s_in);
+  int s{stoi(s_in)};
+
+  std::vector<std::string> test_strings{};
+
+  for (int i = 0; i < s; ++i)
+  {
+    std::string test_string;
+    getline(std::cin, test_string);
+    test_strings.push_back(test_string);
+  }
+
+  return test_strings;
+}
 
 std::string asString(char x)
 {
@@ -222,37 +153,6 @@ void populateStateTransitions(NFA &n, std::vector<std::shared_ptr<State>> &state
     }
     states[i]->transition_states = state_transitions;
   }
-}
-
-void performEpsilonClosure(std::vector<std::shared_ptr<State>> &validStates, std::vector<std::shared_ptr<State>> &states)
-{
-  bool shouldContinue{false};
-  int k = 0;
-  do
-  {
-    shouldContinue = false;
-    for (int x = 0; x < validStates[k]->transition_states.size(); ++x)
-    {
-      if (validStates[k]->transition_states[x].symbol == "eps")
-      {
-        bool alreadyThere{false};
-        for (auto vs : validStates)
-        {
-          if (vs->state == states[k]->transition_states[x].to_state->state)
-          {
-            alreadyThere = true;
-            break;
-          }
-        }
-        if (!alreadyThere)
-        {
-          validStates.push_back(states[k]->transition_states[x].to_state);
-          shouldContinue = true;
-        }
-      }
-    }
-    ++k;
-  } while (shouldContinue);
 }
 
 std::vector<std::shared_ptr<State>> performStateEpsilonExpansion(const std::shared_ptr<State> state, const std::vector<std::shared_ptr<State>> &states)
@@ -313,45 +213,36 @@ std::vector<std::shared_ptr<State>> appendUniqueStates(const std::vector<std::sh
 
 int main()
 {
-  NFA n{construct_machine_definition()};
+  NFA n{read_nfa_definition_input()};
   std::vector<std::string> testStrings = read_test_strings();
 
   std::vector<std::shared_ptr<State>> states = buildStateObjects(n);
 
   populateStateTransitions(n, states);
 
-  // Iterate through the test strings
   for (int i = 0; i < testStrings.size(); ++i)
   {
     std::vector<std::shared_ptr<State>> validStates{states[0]};
     std::vector<std::shared_ptr<State>> nextValidStates{};
-    // std::vector<std::shared_ptr<State>> epsilonClosureNextValidStates{};
 
     if (testStrings[i] == "")
     {
-      // Perform Epsilon Closure for the start state
-      performEpsilonClosure(validStates, states);
+      validStates = performStateEpsilonExpansion(states[0], states);
     }
     else
     {
-      // Iterate through the characters of each string
       for (int j = 0; j < testStrings[i].length(); ++j)
       {
-        // Iterate through the valid states
+        if (j == 0)
+        {
+          validStates = performStateEpsilonExpansion(states[0], states);
+        }
         for (int x = 0; x < validStates.size(); ++x)
         {
-          // Perform Epsilon Closure for the start state
-          if (j == 0)
-          {
-            performStateEpsilonExpansion(states[x], states);
-          }
-
-          // Iterate through the state's transition functions
           for (int y = 0; y < validStates[x]->transition_states.size(); ++y)
           {
             if (validStates[x]->transition_states[y].symbol == asString(testStrings[i][j]))
             {
-              // Only add the state to the list of valid states if it isn't already there
               bool stateAlreadyInNextValidStates = false;
               for (int z = 0; z < nextValidStates.size(); ++z)
               {
@@ -363,14 +254,12 @@ int main()
               if (!stateAlreadyInNextValidStates)
               {
                 auto epsilonExpandedNextState{performStateEpsilonExpansion(validStates[x]->transition_states[y].to_state, states)};
-                // nextValidStates.push_back(validStates[x]->transition_states[y].to_state);
                 nextValidStates = appendUniqueStates(nextValidStates, epsilonExpandedNextState);
               }
             }
           }
         }
 
-        // Prepare valid states set for the next symbol read
         validStates.clear();
         if (nextValidStates.size() > 0)
         {

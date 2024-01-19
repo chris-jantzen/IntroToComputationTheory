@@ -1,14 +1,3 @@
-// input description:
-// n indicating the number of states in n, 0 to n-1 where 0 is the start state.
-// integer indicating the number of transitions that follow given as tokens a b
-// c
-// -> a is the source state, c is the destination state, b is either 'eps' or
-// the symbol for the transition.
-// Following is an integer f for the number of final states
-// The next {f} lines indicate which of the states are final accept states
-// Then an integer {s} is given indicating the number of lines of strings to
-// test in the machine to follow. Alphabet is [a-z]
-
 #include <iostream>
 #include <memory>
 #include <string>
@@ -36,37 +25,6 @@ public:
   NFA(int states, std::vector<Transition> transitions,
       std::vector<int> acceptStates)
       : states{states}, transitions{transitions}, acceptStates{acceptStates} {}
-
-  void print_definition()
-  {
-    std::cout << "Machine definition" << '\n';
-    std::cout << "Number of states: " << states << '\n';
-    std::cout << "Alphabet: [a-z]" << '\n';
-    std::cout << "Accept states: " << '\n';
-    print_acceptStates();
-
-    std::cout << "transitions: " << '\n';
-    print_transitions();
-    std::cout << "End Machine Definition" << std::endl;
-  }
-
-  void print_transitions()
-  {
-    for (int i = 0; i < transitions.size(); ++i)
-    {
-      std::cout << transitions[i].from << " " << transitions[i].symbol << " "
-                << transitions[i].to << '\n';
-    }
-  }
-
-  void print_acceptStates()
-  {
-    for (int i = 0; i < acceptStates.size(); ++i)
-    {
-      std::cout << acceptStates[i] << ' ';
-    }
-    std::cout << '\n';
-  }
 
   bool isAcceptState(int state)
   {
@@ -103,7 +61,7 @@ NFA construct_machine_definition()
   std::string n_in;
   if (test_run)
   {
-    n_in = "4";
+    n_in = "5";
   }
   else
   {
@@ -127,10 +85,10 @@ NFA construct_machine_definition()
   std::vector<Transition> transitions{};
   if (test_run)
   {
-    transitions.push_back(split_transition_input("0 eps 1"));
-    transitions.push_back(split_transition_input("1 a 2"));
-    transitions.push_back(split_transition_input("2 b 3"));
-    transitions.push_back(split_transition_input("3 a 3"));
+    transitions.push_back(split_transition_input("0 a 1"));
+    transitions.push_back(split_transition_input("1 eps 2"));
+    transitions.push_back(split_transition_input("2 eps 3"));
+    transitions.push_back(split_transition_input("3 eps 4"));
   }
   else
   {
@@ -145,7 +103,7 @@ NFA construct_machine_definition()
   std::string f_in;
   if (test_run)
   {
-    f_in = "2";
+    f_in = "1";
   }
   else
   {
@@ -157,7 +115,7 @@ NFA construct_machine_definition()
 
   if (test_run)
   {
-    std::vector<std::string> inputAcceptStates{"0", "3"};
+    std::vector<std::string> inputAcceptStates{"4"};
     for (std::string as : inputAcceptStates)
     {
       acceptStates.push_back(stoi(as));
@@ -181,7 +139,7 @@ std::vector<std::string> read_test_strings()
   std::string s_in;
   if (test_run)
   {
-    s_in = "6";
+    s_in = "3";
   }
   else
   {
@@ -194,9 +152,8 @@ std::vector<std::string> read_test_strings()
   if (test_run)
   {
     test_strings.push_back("");
-    test_strings.push_back("aba");
-    test_strings.push_back("abaaaaa");
-    test_strings.push_back("abab");
+    test_strings.push_back("a");
+    test_strings.push_back("aa");
   }
   else
   {
@@ -239,20 +196,6 @@ std::string asString(char x)
   return s;
 }
 
-void log_valid_states(std::vector<std::shared_ptr<State>> &validStates, std::vector<std::shared_ptr<State>> &nextValidStates)
-{
-  std::cout << "ValidStates :" << '\n';
-  for (std::shared_ptr<State> vs : validStates)
-  {
-    std::cout << vs->state << '\n';
-  }
-  std::cout << "Next round valid states :" << '\n';
-  for (std::shared_ptr<State> vs : nextValidStates)
-  {
-    std::cout << vs->state << '\n';
-  }
-}
-
 std::vector<std::shared_ptr<State>> buildStateObjects(NFA &n)
 {
   std::vector<std::shared_ptr<State>> states{};
@@ -281,6 +224,93 @@ void populateStateTransitions(NFA &n, std::vector<std::shared_ptr<State>> &state
   }
 }
 
+void performEpsilonClosure(std::vector<std::shared_ptr<State>> &validStates, std::vector<std::shared_ptr<State>> &states)
+{
+  bool shouldContinue{false};
+  int k = 0;
+  do
+  {
+    shouldContinue = false;
+    for (int x = 0; x < validStates[k]->transition_states.size(); ++x)
+    {
+      if (validStates[k]->transition_states[x].symbol == "eps")
+      {
+        bool alreadyThere{false};
+        for (auto vs : validStates)
+        {
+          if (vs->state == states[k]->transition_states[x].to_state->state)
+          {
+            alreadyThere = true;
+            break;
+          }
+        }
+        if (!alreadyThere)
+        {
+          validStates.push_back(states[k]->transition_states[x].to_state);
+          shouldContinue = true;
+        }
+      }
+    }
+    ++k;
+  } while (shouldContinue);
+}
+
+std::vector<std::shared_ptr<State>> performStateEpsilonExpansion(const std::shared_ptr<State> state, const std::vector<std::shared_ptr<State>> &states)
+{
+  std::vector<std::shared_ptr<State>> result{state};
+  int i{0};
+  bool shouldContinue{false};
+  do
+  {
+    shouldContinue = false;
+    for (State::TransitionFunction t : result[i]->transition_states)
+    {
+      if (t.symbol == "eps")
+      {
+        bool alreadyThere{false};
+        for (std::shared_ptr<State> r : result)
+        {
+          if (r->state == t.to_state->state)
+          {
+            alreadyThere = true;
+            break;
+          }
+        }
+        if (!alreadyThere)
+        {
+          result.push_back(t.to_state);
+          shouldContinue = true;
+        }
+      }
+    }
+    ++i;
+  } while (shouldContinue);
+  return result;
+}
+
+std::vector<std::shared_ptr<State>> appendUniqueStates(const std::vector<std::shared_ptr<State>> &nextValidStates, const std::vector<std::shared_ptr<State>> &epsilonExpandedNextState)
+{
+  std::vector<std::shared_ptr<State>> result{};
+  for (auto nv : nextValidStates)
+    result.push_back(nv);
+
+  for (auto e : epsilonExpandedNextState)
+  {
+    bool alreadyThere{false};
+    for (auto nv : nextValidStates)
+    {
+      if (nv->state == e->state)
+      {
+        alreadyThere = true;
+        break;
+      }
+    }
+    if (!alreadyThere)
+      result.push_back(e);
+  }
+  return result;
+}
+
 int main()
 {
   NFA n{construct_machine_definition()};
@@ -290,27 +320,17 @@ int main()
 
   populateStateTransitions(n, states);
 
-  // std::string problemString = testStrings[testStrings.size() - 1];
-  // testStrings.clear();
-  // testStrings.push_back(problemString);
-
   // Iterate through the test strings
   for (int i = 0; i < testStrings.size(); ++i)
   {
     std::vector<std::shared_ptr<State>> validStates{states[0]};
     std::vector<std::shared_ptr<State>> nextValidStates{};
-    std::vector<std::shared_ptr<State>> epsilonClosureNextValidStates{};
+    // std::vector<std::shared_ptr<State>> epsilonClosureNextValidStates{};
 
     if (testStrings[i] == "")
     {
       // Perform Epsilon Closure for the start state
-      for (int k = 0; k < validStates[0]->transition_states.size(); ++k)
-      {
-        if (validStates[0]->transition_states[k].symbol == "eps")
-        {
-          validStates.push_back(states[0]->transition_states[k].to_state);
-        }
-      }
+      performEpsilonClosure(validStates, states);
     }
     else
     {
@@ -323,13 +343,7 @@ int main()
           // Perform Epsilon Closure for the start state
           if (j == 0)
           {
-            for (int k = 0; k < validStates[x]->transition_states.size(); ++k)
-            {
-              if (validStates[x]->transition_states[k].symbol == "eps")
-              {
-                validStates.push_back(states[x]->transition_states[k].to_state);
-              }
-            }
+            performStateEpsilonExpansion(states[x], states);
           }
 
           // Iterate through the state's transition functions
@@ -338,50 +352,19 @@ int main()
             if (validStates[x]->transition_states[y].symbol == asString(testStrings[i][j]))
             {
               // Only add the state to the list of valid states if it isn't already there
-              if (nextValidStates.size() > 0)
-              {
-                bool stateAlreadyInNextValidStates = false;
-                for (int z = 0; z < nextValidStates.size(); ++z)
-                {
-                  if (nextValidStates[z]->state == validStates[x]->transition_states[y].to_state->state)
-                  {
-                    stateAlreadyInNextValidStates = true;
-                  }
-                }
-                if (!stateAlreadyInNextValidStates)
-                {
-                  nextValidStates.push_back(validStates[x]->transition_states[y].to_state);
-                }
-              }
-              else
-              {
-                nextValidStates.push_back(validStates[x]->transition_states[y].to_state);
-              }
-            }
-          }
-        }
-        for (auto x : nextValidStates)
-        {
-          epsilonClosureNextValidStates.push_back(x);
-        }
-        for (int x = 0; x < nextValidStates.size(); ++x)
-        {
-          for (int k = 0; k < nextValidStates[x]->transition_states.size(); ++k)
-          {
-            if (nextValidStates[x]->transition_states[k].symbol == "eps")
-            {
               bool stateAlreadyInNextValidStates = false;
-              for (int eps = 0; eps < epsilonClosureNextValidStates.size(); ++eps)
+              for (int z = 0; z < nextValidStates.size(); ++z)
               {
-                if (epsilonClosureNextValidStates[eps]->state == nextValidStates[x]->transition_states[k].to_state->state)
+                if (nextValidStates[z]->state == validStates[x]->transition_states[y].to_state->state)
                 {
                   stateAlreadyInNextValidStates = true;
-                  break;
                 }
               }
               if (!stateAlreadyInNextValidStates)
               {
-                epsilonClosureNextValidStates.push_back(nextValidStates[x]->transition_states[k].to_state);
+                auto epsilonExpandedNextState{performStateEpsilonExpansion(validStates[x]->transition_states[y].to_state, states)};
+                // nextValidStates.push_back(validStates[x]->transition_states[y].to_state);
+                nextValidStates = appendUniqueStates(nextValidStates, epsilonExpandedNextState);
               }
             }
           }
@@ -389,14 +372,13 @@ int main()
 
         // Prepare valid states set for the next symbol read
         validStates.clear();
-        if (epsilonClosureNextValidStates.size())
+        if (nextValidStates.size() > 0)
         {
-          for (std::shared_ptr<State> s : epsilonClosureNextValidStates)
+          for (std::shared_ptr<State> s : nextValidStates)
           {
             validStates.push_back(s);
           }
           nextValidStates.clear();
-          epsilonClosureNextValidStates.clear();
         }
       }
     }
@@ -423,55 +405,6 @@ int main()
       std::cout << "reject" << '\n';
     }
   }
-
-  /**
-   * Read in machine construction information
-   * Check for epsilon transitions from the start state
-   *   add any epsilon transition "to states" to the set of current states
-   * Read the first symbol of the string
-   *   for each current state, look for any transition functions for that symbol
-   *   add the "to state" to the set of current states
-   * Continue until all symbols of the string have been read
-   * Accept if any of the current states are final states
-   */
-
-  /* std::cout << states[0]->state << std::endl; */
-  /* std::shared_ptr<State> traverser = states[0]; */
-  // Graph g{states[0]};
-
-  // std::shared_ptr<State> traverser = g.start;
-
-  // // aba
-  // std::string ts1 = test_strings[0];
-
-  // for (int i = 0; i < ts1.length(); ++i)
-  // {
-  //   for (int j = 0; j < traverser->transition_states.size(); ++j)
-  //   {
-  //     if (traverser->transition_states[j].symbol.compare(asString(ts1[i])))
-  //     {
-  //       traverser = traverser->transition_states[j].to_state;
-  //     }
-  //     else if (traverser->transition_states[j].symbol.compare("eps"))
-  //     {
-  //       traverser = traverser->transition_states[j].to_state;
-  //     }
-  //   }
-  // }
-
-  // for (int i = 0; i < traverser->transition_states.size(); ++i)
-  // {
-  //   std::cout << "I am at state: " << traverser->state
-  //             << " and about to read symbol "
-  //             << traverser->transition_states[i].symbol << " to go to state: "
-  //             << traverser->transition_states[i].to_state->state << std::endl;
-  //   std::shared_ptr<State> t = traverser->transition_states[i].to_state;
-  // }
-
-  /* std::cout << traverser->state << std::endl; */
-  /* std::cout << traverser->transition_states[2].symbol << std::endl; */
-  /* traverser = traverser->transition_states[2].to_state; */
-  /* std::cout << traverser->state << std::endl; */
 
   return 0;
 }

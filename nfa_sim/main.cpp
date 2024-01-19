@@ -14,8 +14,7 @@
 #include <string>
 #include <vector>
 
-bool test_run = true;
-bool add_eps = false;
+bool test_run = false;
 
 class Transition
 {
@@ -104,7 +103,7 @@ NFA construct_machine_definition()
   std::string n_in;
   if (test_run)
   {
-    n_in = "3";
+    n_in = "4";
   }
   else
   {
@@ -117,7 +116,7 @@ NFA construct_machine_definition()
   std::string t_in;
   if (test_run)
   {
-    t_in = "3";
+    t_in = "4";
   }
   else
   {
@@ -128,9 +127,10 @@ NFA construct_machine_definition()
   std::vector<Transition> transitions{};
   if (test_run)
   {
-    transitions.push_back(split_transition_input("0 a 1"));
-    transitions.push_back(split_transition_input("1 eps 0"));
+    transitions.push_back(split_transition_input("0 eps 1"));
     transitions.push_back(split_transition_input("1 a 2"));
+    transitions.push_back(split_transition_input("2 b 3"));
+    transitions.push_back(split_transition_input("3 a 3"));
   }
   else
   {
@@ -145,7 +145,7 @@ NFA construct_machine_definition()
   std::string f_in;
   if (test_run)
   {
-    f_in = "1";
+    f_in = "2";
   }
   else
   {
@@ -157,7 +157,7 @@ NFA construct_machine_definition()
 
   if (test_run)
   {
-    std::vector<std::string> inputAcceptStates{"2"};
+    std::vector<std::string> inputAcceptStates{"0", "3"};
     for (std::string as : inputAcceptStates)
     {
       acceptStates.push_back(stoi(as));
@@ -173,11 +173,7 @@ NFA construct_machine_definition()
     }
   }
 
-  NFA machine_n{n, transitions, acceptStates};
-
-  // machine_n.print_definition();
-
-  return machine_n;
+  return {n, transitions, acceptStates};
 }
 
 std::vector<std::string> read_test_strings()
@@ -198,10 +194,9 @@ std::vector<std::string> read_test_strings()
   if (test_run)
   {
     test_strings.push_back("");
-    test_strings.push_back("a");
-    test_strings.push_back("b");
-    test_strings.push_back("aaaaa");
-    test_strings.push_back("aaaaab");
+    test_strings.push_back("aba");
+    test_strings.push_back("abaaaaa");
+    test_strings.push_back("abab");
   }
   else
   {
@@ -215,10 +210,6 @@ std::vector<std::string> read_test_strings()
 
   return test_strings;
 }
-
-// ----------------------------------------------------------------
-// ->(q0) -> (q1) -> (q2) -> ((q3)) f=3
-// ----------------------------------------------------------------
 
 class State
 {
@@ -308,92 +299,104 @@ int main()
   {
     std::vector<std::shared_ptr<State>> validStates{states[0]};
     std::vector<std::shared_ptr<State>> nextValidStates{};
+    std::vector<std::shared_ptr<State>> epsilonClosureNextValidStates{};
 
-    int stringLength = testStrings[i].length();
     if (testStrings[i] == "")
     {
-      stringLength = 1;
-    }
-
-    // Iterate through the characters of each string
-    for (int j = 0; j < stringLength; ++j)
-    {
-      // Iterate through the valid states
-      for (int x = 0; x < validStates.size(); ++x)
+      // Perform Epsilon Closure for the start state
+      for (int k = 0; k < validStates[0]->transition_states.size(); ++k)
       {
-        // Perform Epsilon Closure for the start state
-        if (x == 0)
+        if (validStates[0]->transition_states[k].symbol == "eps")
         {
-          for (int k = 0; k < validStates[x]->transition_states.size(); ++k)
+          validStates.push_back(states[0]->transition_states[k].to_state);
+        }
+      }
+    }
+    else
+    {
+      // Iterate through the characters of each string
+      for (int j = 0; j < testStrings[i].length(); ++j)
+      {
+        // Iterate through the valid states
+        for (int x = 0; x < validStates.size(); ++x)
+        {
+          // Perform Epsilon Closure for the start state
+          if (j == 0)
           {
-            if (validStates[x]->transition_states[k].symbol == "eps")
+            for (int k = 0; k < validStates[x]->transition_states.size(); ++k)
             {
-              validStates.push_back(states[0]->transition_states[k].to_state);
+              if (validStates[x]->transition_states[k].symbol == "eps")
+              {
+                validStates.push_back(states[x]->transition_states[k].to_state);
+              }
             }
           }
-        }
 
-        // Iterate through the state's transition functions
-        for (int y = 0; y < validStates[x]->transition_states.size(); ++y)
-        {
-          if (validStates[x]->transition_states[y].symbol == asString(testStrings[i][j]) || validStates[x]->transition_states[y].symbol == "eps")
+          // Iterate through the state's transition functions
+          for (int y = 0; y < validStates[x]->transition_states.size(); ++y)
           {
-            // Only add the state to the list of valid states if it isn't already there
-            if (nextValidStates.size() > 0)
+            if (validStates[x]->transition_states[y].symbol == asString(testStrings[i][j]))
             {
-              bool stateAlreadyInNextValidStates = false;
-              for (int z = 0; z < nextValidStates.size(); ++z)
+              // Only add the state to the list of valid states if it isn't already there
+              if (nextValidStates.size() > 0)
               {
-                if (nextValidStates[z]->state == validStates[x]->transition_states[y].to_state->state)
+                bool stateAlreadyInNextValidStates = false;
+                for (int z = 0; z < nextValidStates.size(); ++z)
                 {
-                  stateAlreadyInNextValidStates = true;
+                  if (nextValidStates[z]->state == validStates[x]->transition_states[y].to_state->state)
+                  {
+                    stateAlreadyInNextValidStates = true;
+                  }
+                }
+                if (!stateAlreadyInNextValidStates)
+                {
+                  nextValidStates.push_back(validStates[x]->transition_states[y].to_state);
                 }
               }
-              if (!stateAlreadyInNextValidStates)
+              else
               {
                 nextValidStates.push_back(validStates[x]->transition_states[y].to_state);
               }
             }
-            else
-            {
-              nextValidStates.push_back(validStates[x]->transition_states[y].to_state);
-            }
           }
         }
-      }
-
-      if (j == stringLength - 1)
-      {
-        // If null string is passed in, then only look at the start states
-        if (testStrings[j] != "")
+        for (auto x : nextValidStates)
         {
-          validStates.clear();
-          if (nextValidStates.size() > 0)
+          epsilonClosureNextValidStates.push_back(x);
+        }
+        for (int x = 0; x < nextValidStates.size(); ++x)
+        {
+          for (int k = 0; k < nextValidStates[x]->transition_states.size(); ++k)
           {
-            for (std::shared_ptr<State> s : nextValidStates)
+            if (nextValidStates[x]->transition_states[k].symbol == "eps")
             {
-              validStates.push_back(s);
+              bool stateAlreadyInNextValidStates = false;
+              for (int eps = 0; eps < epsilonClosureNextValidStates.size(); ++eps)
+              {
+                if (epsilonClosureNextValidStates[eps]->state == nextValidStates[x]->transition_states[k].to_state->state)
+                {
+                  stateAlreadyInNextValidStates = true;
+                  break;
+                }
+              }
+              if (!stateAlreadyInNextValidStates)
+              {
+                epsilonClosureNextValidStates.push_back(nextValidStates[x]->transition_states[k].to_state);
+              }
             }
           }
         }
-      }
-      else
-      {
+
         // Prepare valid states set for the next symbol read
-        if (validStates.size() && nextValidStates.size() != 0)
+        validStates.clear();
+        if (epsilonClosureNextValidStates.size())
         {
-          validStates.clear();
-        }
-        if (nextValidStates.size() || j == stringLength - 1)
-        {
-          for (std::shared_ptr<State> s : nextValidStates)
+          for (std::shared_ptr<State> s : epsilonClosureNextValidStates)
           {
             validStates.push_back(s);
           }
-        }
-        if (j != stringLength - 1)
-        {
           nextValidStates.clear();
+          epsilonClosureNextValidStates.clear();
         }
       }
     }

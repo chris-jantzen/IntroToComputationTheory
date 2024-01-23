@@ -1,2 +1,7 @@
 test.cpp
 bin
+*.dSYM/**
+test_cases.txt
+main
+
+.DS_Store

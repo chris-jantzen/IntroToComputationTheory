@@ -10,16 +10,6 @@
 
 #define EPSILON "eps"
 
-/**
- * Construct the NFA table fully epsilon expanded
- * Create the DFA table starting from the expanded start state of the NFA
- * After filling out the state transition sets for each symbol in the alphabet, add any new k-tuples to the table as keys and continue filling out the table until reaching the end
- * Give each state an identifier
- * Mark any states that contain any of the NFA final states as accept states
- * Invert the accept states
- * Convert the transitions between state identifiers into strings to log
- */
-
 bool append_unique(std::vector<int> &v, int val) {
     for (const auto &i: v) {
         if (i == val) {
@@ -28,6 +18,7 @@ bool append_unique(std::vector<int> &v, int val) {
     }
 
     v.push_back(val);
+    return true;
 }
 
 bool operator<(const std::set<int> &s1, const std::set<int> &s2) {
@@ -48,7 +39,7 @@ bool operator<(const std::set<int> &s1, const std::set<int> &s2) {
 
 class DFA_State {
 private:
-    int id{};
+    int id;
 public:
     std::set<int> state_set;
     std::map<std::string, std::set<int>> transitions{};
@@ -69,8 +60,7 @@ public:
             }
         }
 
-        if (state_set.empty())
-        {
+        if (state_set.empty()) {
             is_sink_state = true;
         }
     }
@@ -213,11 +203,11 @@ NFA::Transition split_transition_input(std::string transitionString) {
     return {stoi(pieces[0]), pieces[1], stoi(pieces[2])};
 }
 
-std::map<int, std::set<int>> populate_epsilon_transitions_map(const std::vector<NFA::Transition> &transitions, const int number_of_states) {
+std::map<int, std::set<int>>
+populate_epsilon_transitions_map(const std::vector<NFA::Transition> &transitions, const int number_of_states) {
     std::map<int, std::set<int>> epsilon_expansions_map{};
     bool foundEpsilon{false};
-    for (int i = 0; i < number_of_states; ++i)
-    {
+    for (int i = 0; i < number_of_states; ++i) {
         epsilon_expansions_map[i] = {};
     }
     for (NFA::Transition t: transitions) {
@@ -258,7 +248,8 @@ std::map<int, std::vector<TransitionPair>> construct_transitions_table_for_alpha
         const std::set<std::string> &alphabet,
         const std::vector<NFA::Transition> &transitions) {
     std::map<int, std::vector<TransitionPair>> transitions_table{};
-    std::map<int, std::set<int>> epsilon_expansions_map{populate_epsilon_transitions_map(transitions, number_of_states)};
+    std::map<int, std::set<int>> epsilon_expansions_map{
+            populate_epsilon_transitions_map(transitions, number_of_states)};
 
     // Initialize table cells for all states and symbols
     for (int i = 0; i < number_of_states; ++i) {
@@ -357,27 +348,8 @@ NFA read_nfa_definition_input() {
     return {n, alphabet, transitionsTable, acceptStates};
 }
 
-//std::vector<std::string> read_test_strings()
-//{
-//    std::string s_in;
-//    getline(std::cin, s_in);
-//    int s{stoi(s_in)};
-//
-//    std::vector<std::string> test_strings{};
-//
-//    for (int i = 0; i < s; ++i)
-//    {
-//        std::string test_string;
-//        getline(std::cin, test_string);
-//        test_strings.push_back(test_string);
-//    }
-//
-//    return test_strings;
-//}
-
 int main() {
     NFA n{read_nfa_definition_input()};
-    //    std::vector<std::string> test_strings{read_test_strings()};
 
     int max_dfa_state_count{static_cast<int>(pow(2, n.states))};
 
@@ -416,11 +388,9 @@ int main() {
                 for (int state: t.to) {
                     set.insert(state);
 
-                    for (auto p : n.transitionTable.at(state))
-                    {
-                        if (p.symbol == EPSILON)
-                        {
-                            for (auto s : p.to)
+                    for (auto p: n.transitionTable.at(state)) {
+                        if (p.symbol == EPSILON) {
+                            for (auto s: p.to)
                                 set.insert(s);
                         }
                     }
@@ -433,11 +403,10 @@ int main() {
             std::set<int> set_states{};
             for (const int t: dfa_state.transitions.at(symbol)) {
                 set_states.insert(t);
-                for (const auto transition_pair : n.transitionTable.at(t))
-                {
+                for (const auto transition_pair: n.transitionTable.at(t)) {
                     if (transition_pair.symbol != EPSILON) continue;
 
-                    for (const int eps_expansion : transition_pair.to)
+                    for (const int eps_expansion: transition_pair.to)
                         set_states.insert(eps_expansion);
                 }
             }
@@ -447,6 +416,14 @@ int main() {
                 if (new_state == ds) {
                     should_add = false;
                     break;
+                }
+            }
+            if (should_add) {
+                for (const DFA_State &ds: new_dfa_states) {
+                    if (new_state == ds) {
+                        should_add = false;
+                        break;
+                    }
                 }
             }
             if (should_add) {
@@ -473,7 +450,7 @@ int main() {
     std::vector<int> accept_states{};
     std::vector<std::string> transitions_to_string{};
     for (const auto &dfa_state: dfa_states) {
-        if (dfa_state.is_accept_state){
+        if (dfa_state.is_accept_state) {
             accept_states.push_back(dfa_state.get_id());
         }
         for (const auto &table_column: dfa_state.transitions) {
@@ -493,14 +470,12 @@ int main() {
         }
     }
     std::cout << transition_count << '\n';
-    for (std::string transition_str : transitions_to_string)
-    {
+    for (std::string transition_str: transitions_to_string) {
         std::cout << transition_str << '\n';
     }
 
     std::cout << accept_states.size() << '\n';
-    for (int accept_state : accept_states)
-    {
+    for (int accept_state: accept_states) {
         std::cout << accept_state << '\n';
     }
 

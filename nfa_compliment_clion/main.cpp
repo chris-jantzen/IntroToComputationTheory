@@ -79,16 +79,6 @@ public:
         this->is_accept_state = !is_accept_state;
     }
 
-    void trim_excess_transitions() {
-        if (is_accept_state || !state_set.empty()) return;
-
-        for (auto &table_column: transitions) {
-            if (table_column.second.size() == state_set.size()) {
-                table_column.second = {};
-            }
-        }
-    }
-
     inline void set_id(int id) { this->id = id; }
 
     inline int get_id() const { return this->id; }
@@ -223,13 +213,17 @@ NFA::Transition split_transition_input(std::string transitionString) {
     return {stoi(pieces[0]), pieces[1], stoi(pieces[2])};
 }
 
-std::map<int, std::set<int>> populate_epsilon_transitions_map(const std::vector<NFA::Transition> &transitions) {
+std::map<int, std::set<int>> populate_epsilon_transitions_map(const std::vector<NFA::Transition> &transitions, const int number_of_states) {
     std::map<int, std::set<int>> epsilon_expansions_map{};
     bool foundEpsilon{false};
+    for (int i = 0; i < number_of_states; ++i)
+    {
+        epsilon_expansions_map[i] = {};
+    }
     for (NFA::Transition t: transitions) {
-        epsilon_expansions_map[t.from] = {};
         if (t.symbol == EPSILON) {
             foundEpsilon = true;
+            break;
         }
     }
     if (!foundEpsilon)
@@ -264,7 +258,7 @@ std::map<int, std::vector<TransitionPair>> construct_transitions_table_for_alpha
         const std::set<std::string> &alphabet,
         const std::vector<NFA::Transition> &transitions) {
     std::map<int, std::vector<TransitionPair>> transitions_table{};
-    std::map<int, std::set<int>> epsilon_expansions_map{populate_epsilon_transitions_map(transitions)};
+    std::map<int, std::set<int>> epsilon_expansions_map{populate_epsilon_transitions_map(transitions, number_of_states)};
 
     // Initialize table cells for all states and symbols
     for (int i = 0; i < number_of_states; ++i) {
@@ -419,9 +413,17 @@ int main() {
                 if (t.symbol == EPSILON) continue;
 
                 std::set<int> &set = dfa_state.transitions.at(t.symbol);
-
                 for (int state: t.to) {
                     set.insert(state);
+
+                    for (auto p : n.transitionTable.at(state))
+                    {
+                        if (p.symbol == EPSILON)
+                        {
+                            for (auto s : p.to)
+                                set.insert(s);
+                        }
+                    }
                 }
             }
         }
@@ -431,6 +433,13 @@ int main() {
             std::set<int> set_states{};
             for (const int t: dfa_state.transitions.at(symbol)) {
                 set_states.insert(t);
+                for (const auto transition_pair : n.transitionTable.at(t))
+                {
+                    if (transition_pair.symbol != EPSILON) continue;
+
+                    for (const int eps_expansion : transition_pair.to)
+                        set_states.insert(eps_expansion);
+                }
             }
             DFA_State new_state{set_states, dfa_alphabet, n.acceptStates};
             bool should_add{true};
@@ -457,7 +466,6 @@ int main() {
     for (int d = 0; d < dfa_states.size(); ++d) {
         dfa_states[d].set_id(d);
         dfa_states[d].flip_accept_state_status();
-//        dfa_states[d].trim_excess_transitions();
     }
 
     std::cout << dfa_states.size() << '\n';
@@ -470,7 +478,6 @@ int main() {
         }
         for (const auto &table_column: dfa_state.transitions) {
             // if there is a transition present, but handle the case where it's a {} state that is now an accept state
-//            if (!table_column.second.empty() || (!dfa_state.state_set.empty() && dfa_state.is_accept_state)) {
             if (!dfa_state.is_sink_state || (dfa_state.is_sink_state && dfa_state.is_accept_state)) {
                 transition_count++;
                 for (const auto &state: dfa_states) {

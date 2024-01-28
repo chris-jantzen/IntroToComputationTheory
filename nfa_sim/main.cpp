@@ -2,6 +2,7 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include <set>
 
 #define EPSILON "eps"
 
@@ -43,10 +44,18 @@ public:
 
   bool accept{};
   int state;
-  std::vector<TransitionFunction> transition_states;
+  std::vector<TransitionFunction> transition_functions{};
+  std::set<int> epsilonTransitions{};
 
   State(int s, bool a) : state{s}, accept{a} {}
+
+  friend bool operator<(const std::shared_ptr<State> &left, const std::shared_ptr<State> &right);
 };
+
+bool operator<(const std::shared_ptr<State> &left, const std::shared_ptr<State> &right)
+{
+  return left->state < right->state;
+}
 
 NFA::Transition split_transition_input(std::string transitionString)
 {
@@ -64,23 +73,6 @@ NFA::Transition split_transition_input(std::string transitionString)
     pieces.push_back(transitionString);
 
   return {stoi(pieces[0]), pieces[1], stoi(pieces[2])};
-}
-
-NFA test_run()
-{
-  int n{5};
-  int t{4};
-  std::vector<NFA::Transition> transitions{};
-  std::vector<std::string> transitionStrings{"0 eps 1", "1 eps 2", "2 eps 3", "3 eps 4"};
-  for (auto transition : transitionStrings)
-  {
-    transitions.push_back(split_transition_input(transition));
-  }
-
-  int f{1};
-  std::vector<int> acceptStates{4};
-
-  return {n, transitions, acceptStates};
 }
 
 NFA read_nfa_definition_input()
@@ -136,104 +128,91 @@ std::vector<std::string> read_test_strings()
   return test_strings;
 }
 
+std::vector<std::shared_ptr<State>> buildStateObjects(NFA &n)
+{
+  std::vector<std::shared_ptr<State>> states{};
+  for (int i = 0; i < n.states; ++i)
+  {
+    std::shared_ptr<State> state = std::make_shared<State>(i, n.isAcceptState(i));
+    states.push_back(state);
+  }
+
+  for (auto t : n.transitions)
+  {
+    states[t.from]->transition_functions.push_back(State::TransitionFunction{t.symbol, states[t.to]});
+    if (t.symbol == EPSILON)
+    {
+      states[t.from]->epsilonTransitions.insert(t.to);
+    }
+  }
+  return states;
+}
+
 std::string asString(char x)
 {
   std::string s{x};
   return s;
 }
 
-std::vector<std::shared_ptr<State>> buildStateObjects(NFA &n)
-{
-  std::vector<std::shared_ptr<State>> states{};
-  for (int i = 0; i < n.states; ++i)
-  {
-    std::shared_ptr<State> state =
-        std::make_shared<State>(i, n.isAcceptState(i));
-    states.push_back(state);
-  }
-  return states;
-}
-
-void populateStateTransitions(const NFA &n, std::vector<std::shared_ptr<State>> &states)
-{
-  for (int i = 0; i < states.size(); ++i)
-  {
-    std::vector<State::TransitionFunction> state_transitions{};
-    for (int j = 0; j < n.transitions.size(); ++j)
-    {
-      if (n.transitions[j].from == i)
-      {
-        state_transitions.push_back(State::TransitionFunction{n.transitions[j].symbol, states[n.transitions[j].to]});
-      }
-    }
-    states[i]->transition_states = state_transitions;
-  }
-}
-
-std::vector<std::shared_ptr<State>> performStateEpsilonExpansion(
-    const std::shared_ptr<State> state,
+std::set<std::shared_ptr<State>> performStateEpsilonExpansion(
+    const std::shared_ptr<State> &state,
+    std::set<std::shared_ptr<State>> validNextStates,
     const std::vector<std::shared_ptr<State>> &states)
 {
   std::vector<std::shared_ptr<State>> result{state};
-  int i{0};
+  validNextStates.insert(state);
   bool shouldContinue{false};
+  int i{0};
   do
   {
     shouldContinue = false;
-    for (State::TransitionFunction t : result[i]->transition_states)
+    for (auto t : result[i]->epsilonTransitions)
     {
-      if (t.symbol == EPSILON)
+      auto out = validNextStates.insert(states[t]);
+      if (out.second)
       {
-        bool alreadyThere{false};
-        for (std::shared_ptr<State> r : result)
-        {
-          if (r->state == t.to_state->state)
-          {
-            alreadyThere = true;
-            break;
-          }
-        }
-        if (!alreadyThere)
-        {
-          result.push_back(t.to_state);
-          shouldContinue = true;
-        }
+        result.push_back(states[t]);
+        shouldContinue = true;
       }
     }
     ++i;
+    if (i > states.size())
+      break;
   } while (shouldContinue);
-  return result;
+  return validNextStates;
 }
 
-std::vector<std::shared_ptr<State>> appendUniqueStates(
-    const std::vector<std::shared_ptr<State>> &nextValidStates,
-    const std::vector<std::shared_ptr<State>> &epsilonExpandedNextState)
+void produceOutput(const std::set<std::shared_ptr<State>> &validStates)
 {
-  std::vector<std::shared_ptr<State>> result{};
-  for (auto nv : nextValidStates)
-    result.push_back(nv);
-
-  for (auto e : epsilonExpandedNextState)
+  for (std::shared_ptr<State> state : validStates)
   {
-    bool alreadyThere{false};
-    for (auto nv : nextValidStates)
+    if (state->accept == true)
     {
-      if (nv->state == e->state)
-      {
-        alreadyThere = true;
-        break;
-      }
+      std::cout << "accept" << std::endl;
+      return;
     }
-    if (!alreadyThere)
-      result.push_back(e);
   }
-  return result;
+  std::cout << "reject" << std::endl;
 }
 
-std::vector<std::string> test_run_strings()
+NFA test_run()
 {
-  return {"", "a", "aa", "abbccc", "xyz"};
+  int n{7};
+  int t{7};
+  std::vector<NFA::Transition> transitions{};
+  std::vector<std::string> transitionStrings{"0 eps 1", "1 eps 2", "2 eps 3", "3 eps 4", "4 eps 5", "5 eps 0", "5 a 6"};
+  for (auto transition : transitionStrings)
+  {
+    transitions.push_back(split_transition_input(transition));
+  }
+
+  int f{1};
+  std::vector<int> acceptStates{6};
+
+  return {n, transitions, acceptStates};
 }
+
+std::vector<std::string> test_run_strings() { return {"", "a", "aa"}; }
 
 int main()
 {
@@ -244,44 +223,30 @@ int main()
 
   std::vector<std::shared_ptr<State>> states = buildStateObjects(n);
 
-  populateStateTransitions(n, states);
-
-  for (int i = 0; i < testStrings.size(); ++i)
+  for (std::string testString : testStrings)
   {
-    std::vector<std::shared_ptr<State>> validStates{states[0]};
-    std::vector<std::shared_ptr<State>> nextValidStates{};
+    std::set<std::shared_ptr<State>> validStates{states[0]};
+    std::set<std::shared_ptr<State>> nextValidStates{};
 
-    if (testStrings[i] == "")
+    if (testString == "")
     {
-      validStates = performStateEpsilonExpansion(states[0], states);
+      validStates = performStateEpsilonExpansion(states[0], nextValidStates, states);
     }
     else
     {
-      for (int j = 0; j < testStrings[i].length(); ++j)
+      for (int j = 0; j < testString.length(); ++j)
       {
         if (j == 0)
         {
-          validStates = performStateEpsilonExpansion(states[0], states);
+          validStates = performStateEpsilonExpansion(states[0], nextValidStates, states);
         }
-        for (int x = 0; x < validStates.size(); ++x)
+        for (std::shared_ptr<State> state : validStates)
         {
-          for (auto transition : validStates[x]->transition_states)
+          for (State::TransitionFunction transition : state->transition_functions)
           {
-            if (transition.symbol == asString(testStrings[i][j]))
+            if (transition.symbol == asString(testString[j]))
             {
-              bool stateAlreadyInNextValidStates = false;
-              for (std::shared_ptr<State> nvs : nextValidStates)
-              {
-                if (nvs->state == transition.to_state->state)
-                {
-                  stateAlreadyInNextValidStates = true;
-                }
-              }
-              if (!stateAlreadyInNextValidStates)
-              {
-                std::vector<std::shared_ptr<State>> epsilonExpandedNextState{performStateEpsilonExpansion(transition.to_state, states)};
-                nextValidStates = appendUniqueStates(nextValidStates, epsilonExpandedNextState);
-              }
+              nextValidStates = performStateEpsilonExpansion(transition.to_state, nextValidStates, states);
             }
           }
         }
@@ -289,36 +254,13 @@ int main()
         validStates.clear();
         if (nextValidStates.size() > 0)
         {
-          for (std::shared_ptr<State> s : nextValidStates)
-          {
-            validStates.push_back(s);
-          }
+          validStates = nextValidStates;
           nextValidStates.clear();
         }
       }
     }
 
-    if (validStates.size())
-    {
-      bool shouldAccept = false;
-      for (std::shared_ptr<State> state : validStates)
-      {
-        if (state->accept == true)
-        {
-          shouldAccept = true;
-          std::cout << "accept" << '\n';
-          break;
-        }
-      }
-      if (!shouldAccept)
-      {
-        std::cout << "reject" << '\n';
-      }
-    }
-    else
-    {
-      std::cout << "reject" << '\n';
-    }
+    produceOutput(validStates);
   }
 
   return 0;

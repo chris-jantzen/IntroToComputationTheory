@@ -1,0 +1,74 @@
+Given sample:
+4
+S AB
+A a
+B BB
+B b
+3
+abb
+abbbb
+bbbb
+
+expected output:
+yes
+yes
+no
+
+Test Sample:
+6
+S AB
+S a
+A AA
+A a
+B BB
+B b
+5
+a
+b
+aabb
+abbb
+babb
+
+Expected output:
+yes
+no
+yes
+yes
+no
+
+Test Sample 2:
+9
+S AC
+S a
+S b
+A AB
+A a
+B BC
+B b
+C CC
+C c
+8
+a
+b
+abccc
+abc
+abbc
+aabccc
+aabccccc
+aabcccccccccc
+
+Test Sample 3:
+9
+S AB
+S a
+S b
+A AA
+A AB
+A a
+B BB
+B BA
+B b
+3
+aaba
+a
+b

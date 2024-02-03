@@ -1,0 +1,123 @@
+Given sample:
+4
+S AB
+A a
+B BB
+B b
+3
+abb
+abbbb
+bbbb
+
+expected output:
+yes
+yes
+no
+
+Test Sample:
+6
+S AB
+S a
+A AA
+A a
+B BB
+B b
+5
+a
+b
+aabb
+abbb
+babb
+
+Expected output:
+yes
+no
+yes
+yes
+no
+
+Test Sample 2:
+9
+S AC
+S a
+S b
+A AB
+A a
+B BC
+B b
+C CC
+C c
+9
+a
+b
+abccc
+abc
+abbc
+abbbbbbbbbcccccccccccccccccc
+aabccc
+aabccccc
+aabcccccccccc
+
+9
+S AA
+S AB
+A AA
+A AB
+A BB
+B BB
+B BA
+A a
+B b
+5
+a
+b
+aaabbaabbabbabababababaabbaababa
+abbaabbaaababababa
+abbabaababaaba
+
+Test Case 3:
+7
+S AA
+S a
+A AA
+A AB
+A a
+B BB
+B b
+1
+aabb
+
+27
+S AD
+A AB
+A AC
+A AD
+A AD
+B AB
+B BA
+B BC
+B CD
+C CC
+C CA
+C DB
+C E
+D DE
+D ED
+D DD
+D DC
+E EE
+E e
+E a
+E b
+E c
+E d
+A a
+B b
+C c
+D d
+5
+abcde
+abb
+aabb
+aabbd
+aeedcbddee

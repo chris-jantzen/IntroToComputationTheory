@@ -6,6 +6,13 @@
 #include <cmath>
 #include <array>
 
+struct PermutationTracker {
+public:
+    int frequency{};
+    int counter{};
+    bool set{};
+};
+
 struct Literal {
 public:
     char variable{};
@@ -37,51 +44,45 @@ private:
 public:
     Formula() = default;
 
-private:
-    std::vector<std::map<char, bool>> populate_permutation(int c) {
-        std::vector<std::map<char, bool>> permutations{};
-        for (int i = 0; i < c; ++i) {
-            std::map<char, bool> chars{};
-            for (auto v : this->variables) {
-                chars[v] = false;
-            }
-            permutations.push_back(chars);
+public:
+    void solve() {
+        int number_of_variables = static_cast<int>(this->variables.size());
+        int number_of_permutations = static_cast<int>(pow(2, number_of_variables));
+        int x = number_of_permutations / 2;
+
+        // initialize permutation map
+        std::map<char, bool> permutation_map{};
+        for (char v : this->variables) {
+            permutation_map[v] = false;
         }
-        return permutations;
-    }
 
-    std::vector<std::map<char, bool>> generateVariablePermutations() {
-        int n = static_cast<int>(this->variables.size());
-        int c = pow(2, n);
-        int x = c/2;
-        int y = 0;
-        bool set{true};
-
-        auto permutations{populate_permutation(c)};
-
-        for (char i : variables) {
-            for(int j = 0; j < c; ++j) {
-                permutations[j].at(i) = set;
-                ++y;
-                if (y == x) {
-                    set = !set;
-                    y = 0;
-                }
-            }
+        std::map<char, PermutationTracker> permutation_iteration_tracker{};
+        for (char v : this->variables) {
+            permutation_iteration_tracker[v] = PermutationTracker{x, 0, true};
             x /= 2;
         }
 
-        return permutations;
-    }
+        for (int i = 0; i < number_of_permutations; ++i) {
+            for (char v : this->variables) {
+                PermutationTracker &current_permutation_state = permutation_iteration_tracker.at(v);
+                if (current_permutation_state.counter == current_permutation_state.frequency) {
+                    current_permutation_state.set = !current_permutation_state.set;
+                    current_permutation_state.counter = 0;
+                }
+                ++current_permutation_state.counter;
+                permutation_map.at(v) = current_permutation_state.set;
+            }
 
-public:
-    void solve() {
-        std::vector<std::map<char, bool>> permutations = generateVariablePermutations();
-        for (const std::map<char, bool> &p : permutations) {
+            for (const auto &p : permutation_map) {
+                std::cout << p.first << ": " << p.second << ", ";
+            }
+            std::cout << std::endl;
+
+            // Perform check on all clauses with current permutation_map iteration
             std::vector<bool> result;
             result.reserve(clauses.size());
-            for (const Clause &c : this->clauses) {
-                result.push_back(c.simulate_clause(p));
+            for (const Clause &clause : this->clauses) {
+                result.push_back(clause.simulate_clause(permutation_map));
             }
             bool accept{true};
             for (bool r : result) {
@@ -90,6 +91,8 @@ public:
                     break;
                 }
             }
+
+            // check if all are true and immediately halt and output
             if (accept) {
                 std::cout << "yes" << std::endl;
                 return;

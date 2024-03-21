@@ -1,10 +1,10 @@
 #include <iostream>
-#include <utility>
 #include <vector>
 #include <string>
 #include <map>
 #include <set>
 #include <cmath>
+#include <array>
 
 struct Literal {
 public:
@@ -14,9 +14,9 @@ public:
 
 class Clause {
 public:
-    std::vector<Literal> literals{};
+    std::array<Literal, 3> literals;
 
-    explicit Clause(std::vector<Literal> literals) : literals{std::move(literals)} {}
+    explicit Clause(std::array<Literal, 3> literals) : literals{literals} {}
 
     [[nodiscard]] bool simulate_clause(const std::map<char, bool> &test_case) const {
         for (const Literal &l : literals) {
@@ -50,15 +50,6 @@ private:
         return permutations;
     }
 
-    static void print_permutations(const std::vector<std::map<char, bool>> &permutations) {
-        for (const std::map<char, bool> &x : permutations) {
-            for (std::pair<char, bool> y : x) {
-                std::cout << y.first << ": " << y.second << " ";
-            }
-            std::cout << '\n';
-        }
-    }
-
     std::vector<std::map<char, bool>> generateVariablePermutations() {
         int n = static_cast<int>(this->variables.size());
         int c = pow(2, n);
@@ -85,14 +76,15 @@ private:
 
 public:
     void solve() {
-        auto permutations = generateVariablePermutations();
-        for (const auto &p : permutations) {
-            std::vector<bool> result{};
+        std::vector<std::map<char, bool>> permutations = generateVariablePermutations();
+        for (const std::map<char, bool> &p : permutations) {
+            std::vector<bool> result;
+            result.reserve(clauses.size());
             for (const Clause &c : this->clauses) {
                 result.push_back(c.simulate_clause(p));
             }
             bool accept{true};
-            for (auto r : result) {
+            for (bool r : result) {
                 if (!r) {
                     accept = false;
                     break;
@@ -111,11 +103,13 @@ public:
         std::getline(std::cin, n_in);
         int n{stoi(n_in)};
         std::vector<Clause> input_clauses{};
+        input_clauses.reserve(n);
         for (int i = 0; i < n; ++i) {
             std::string clause_line;
             std::getline(std::cin, clause_line);
 
-            std::vector<Literal> literals{};
+            std::array<Literal, 3> literals;
+            int index{0};
             bool negated{false};
             for (char c: clause_line) {
                 if (c == ' ') continue;
@@ -124,8 +118,9 @@ public:
                     negated = true;
                 } else {
                     this->variables.insert(c);
-                    literals.push_back(Literal{c, negated});
+                    literals[index] = Literal{c, negated};
                     negated = false;
+                    index++;
                 }
             }
             input_clauses.emplace_back(literals);

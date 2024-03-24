@@ -5,6 +5,7 @@
 #include <set>
 #include <cmath>
 #include <array>
+#include <cstdlib>
 
 struct PermutationTracker {
 public:
@@ -26,7 +27,7 @@ public:
     explicit Clause(std::array<Literal, 3> literals) : literals{literals} {}
 
     [[nodiscard]] bool simulate_clause(const std::map<char, bool> &test_case) const {
-        for (const Literal &l : literals) {
+        for (const Literal &l: literals) {
             bool r = test_case.at(l.variable);
             if (l.negated)
                 r = !r;
@@ -45,25 +46,61 @@ public:
     Formula() = default;
 
 public:
+    [[nodiscard]] inline int get_num_variables() const {
+        return static_cast<int>(variables.size());
+    }
+
+    void solve_random() {
+        std::map<char, bool> simulation_map{};
+        for (char v: this->variables) {
+            simulation_map[v] = rand() % 2;
+        }
+
+        for (int i = 0; i < 81500 * get_num_variables(); ++i) {
+            std::vector<Clause> failed_clauses{};
+            bool accept{true};
+            // Simulate all clauses with randomly assigned values tracking clauses that failed
+            for (const Clause &clause: this->clauses) {
+                bool clause_result = clause.simulate_clause(simulation_map);
+                if (!clause_result) {
+                    failed_clauses.push_back(clause);
+                    accept = false;
+                }
+            }
+
+            if (!accept) {
+                int random_clause_index = rand() % failed_clauses.size();
+                Clause failed_clause = this->clauses[random_clause_index];
+                int random_var_index = rand() % 3;
+                simulation_map.at(failed_clause.literals[random_var_index].variable) = !simulation_map.at(
+                        failed_clause.literals[random_var_index].variable);
+            } else {
+                produce_output(true);
+                return;
+            }
+        }
+
+        produce_output(false);
+    }
+
     void solve() {
-        int number_of_variables = static_cast<int>(this->variables.size());
-        int number_of_permutations = static_cast<int>(pow(2, number_of_variables));
+        int number_of_permutations = static_cast<int>(pow(2, get_num_variables()));
         int x = number_of_permutations / 2;
 
         // initialize permutation map
         std::map<char, bool> permutation_map{};
-        for (char v : this->variables) {
+        for (char v: this->variables) {
             permutation_map[v] = false;
         }
 
         std::map<char, PermutationTracker> permutation_iteration_tracker{};
-        for (char v : this->variables) {
+        for (char v: this->variables) {
             permutation_iteration_tracker[v] = PermutationTracker{x, 0, true};
             x /= 2;
         }
 
         for (int i = 0; i < number_of_permutations; ++i) {
-            for (char v : this->variables) {
+            for (char v: this->variables) {
                 PermutationTracker &current_permutation_state = permutation_iteration_tracker.at(v);
                 if (current_permutation_state.counter == current_permutation_state.frequency) {
                     current_permutation_state.set = !current_permutation_state.set;
@@ -73,20 +110,11 @@ public:
                 permutation_map.at(v) = current_permutation_state.set;
             }
 
-            for (const auto &p : permutation_map) {
-                std::cout << p.first << ": " << p.second << ", ";
-            }
-            std::cout << std::endl;
-
             // Perform check on all clauses with current permutation_map iteration
-            std::vector<bool> result;
-            result.reserve(clauses.size());
-            for (const Clause &clause : this->clauses) {
-                result.push_back(clause.simulate_clause(permutation_map));
-            }
             bool accept{true};
-            for (bool r : result) {
-                if (!r) {
+            for (const Clause &clause: this->clauses) {
+                bool result = clause.simulate_clause(permutation_map);
+                if (!result) {
                     accept = false;
                     break;
                 }
@@ -94,11 +122,11 @@ public:
 
             // check if all are true and immediately halt and output
             if (accept) {
-                std::cout << "yes" << std::endl;
+                produce_output(true);
                 return;
             }
         }
-        std::cout << "no" << std::endl;
+        produce_output(false);
     }
 
     void read_input() {
@@ -130,11 +158,21 @@ public:
         }
         this->clauses = input_clauses;
     }
+
+private:
+    static void produce_output(bool success) {
+        std::cout << (success ? "yes" : "no") << std::endl;
+    }
 };
 
 int main() {
     Formula formula{};
     formula.read_input();
-    formula.solve();
+
+    if (formula.get_num_variables() > 10) {
+        formula.solve_random();
+    } else {
+        formula.solve();
+    }
     return 0;
 }

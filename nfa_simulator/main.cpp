@@ -170,6 +170,31 @@ construct_transitions_table_for_alphabet(int number_of_states,
             std::map<int, std::set<int>>>{transitions_table, epsilon_expansions};
 }
 
+std::pair<std::map<int, std::set<int>>, std::map<int, std::map<std::string, std::set<int>>>> populate_transitions_table(
+    int number_of_states,
+    const std::set<std::string>& alphabet,
+    const std::vector<NFA::Transition>& transitions) {
+
+    std::map<int, std::map<std::string, std::set<int>>> transitions_table{};
+    std::map<int, std::set<int>> epsilon_expansions{};
+
+    for (int i = 0; i < number_of_states; ++i) {
+        epsilon_expansions[i] = {};
+        transitions_table[i] = {};
+        for (const std::string& letter : alphabet) {
+            transitions_table.at(i)[letter] = {};
+        }
+    }
+
+    for (const auto& t : transitions) {
+        if (t.symbol == EPSILON) {
+            epsilon_expansions.at(t.from).insert(t.to);
+        } else {
+            transitions_table.at(t.from).at(t.symbol).insert(t.to);
+        }
+    }
+};
+
 NFA read_nfa_definition_input() {
     std::string n_in;
     getline(std::cin, n_in);

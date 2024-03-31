@@ -2,5 +2,6 @@ assignment2
 playground
 
 .DS_Store
+.cache
 
 cmake-build-debug
